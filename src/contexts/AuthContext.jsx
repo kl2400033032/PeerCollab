@@ -6,8 +6,10 @@ import {
   logout as logoutRequest,
   register as registerRequest,
 } from '../services/authService';
-import { clearLegacyAuth } from '../utils/storage';
+import { clearLegacyAuth, clearStoredAuth, saveAuthSession } from '../utils/storage';
 import { AuthContext } from './AuthContextObject';
+
+const authMode = import.meta.env.VITE_AUTH_MODE || 'cookie';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -15,7 +17,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const bootstrap = async () => {
-      clearLegacyAuth();
+      if (authMode === 'cookie') {
+        clearLegacyAuth();
+      }
 
       try {
         await initializeCsrf();
@@ -33,12 +37,18 @@ export function AuthProvider({ children }) {
 
   const login = async (payload) => {
     const response = await loginRequest(payload);
+    if (authMode === 'bearer') {
+      saveAuthSession(response.token, response.user);
+    }
     setUser(response.user);
     return response;
   };
 
   const register = async (payload) => {
     const response = await registerRequest(payload);
+    if (authMode === 'bearer') {
+      saveAuthSession(response.token, response.user);
+    }
     setUser(response.user);
     return response;
   };
@@ -49,6 +59,7 @@ export function AuthProvider({ children }) {
     } catch {
       // Clear local state even if the backend cookie is already gone.
     }
+    clearStoredAuth();
     setUser(null);
   };
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { clearLegacyAuth } from '../utils/storage';
+import { clearStoredAuth, getStoredToken } from '../utils/storage';
 
 let csrfToken = null;
 
@@ -9,16 +9,21 @@ export function setCsrfToken(token) {
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
-  withCredentials: true,
+  withCredentials: import.meta.env.VITE_AUTH_MODE !== 'bearer',
 });
 
 api.interceptors.request.use((config) => {
   const method = (config.method || 'get').toLowerCase();
+  const token = getStoredToken();
 
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   } else if (!config.headers['Content-Type']) {
     config.headers['Content-Type'] = 'application/json';
+  }
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
   if (!['get', 'head', 'options'].includes(method) && csrfToken) {
@@ -31,9 +36,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if ([401, 403].includes(error.response?.status)) {
       csrfToken = null;
-      clearLegacyAuth();
+      clearStoredAuth();
     }
     return Promise.reject(error);
   },
