@@ -1,7 +1,8 @@
-import api from './api';
+import api, { setCsrfToken } from './api';
 
 export async function initializeCsrf() {
   const response = await api.get('/auth/csrf');
+  setCsrfToken(response.data?.token);
   return response.data;
 }
 
@@ -22,5 +23,6 @@ export async function getCurrentUser() {
 
 export async function logout() {
   const response = await api.delete('/auth/logout');
+  setCsrfToken(null);
   return response.data;
 }
